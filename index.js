@@ -100,8 +100,33 @@ const bot = new TelegramBot(token, { polling: true });
 
 bot.onText(/\/start/, (msg) => {
   const chatId = msg.chat.id;
-  bot.sendMessage(chatId, 'Привет, Октагон!');
+  bot.sendMessage(chatId, 'Привет, Октагон! Напишите /help для получения подробной информации');
 });
+
+bot.onText(/\/help/, (msg) => {
+  const chatId = msg.chat.id;
+  const message = `
+Список доступных команд:
+/help - Выводит список команд с описанием
+/site - Отправляет ссылку на сайт Октагона
+/creator - Отправляет информацию о создателе бота
+`
+;
+  bot.sendMessage(chatId, message);
+});
+bot.onText(/\/site/, (msg) => {
+  const chatId = msg.chat.id;
+  const message = 'Ссылка на сайт Октагона: https://students.forus.ru/';
+  bot.sendMessage(chatId, message);
+});
+
+bot.onText(/\/creator/, (msg) => {
+  const chatId = msg.chat.id;
+  const message = 'Мой создатель: Филиппова Дарья Антоновна';
+  bot.sendMessage(chatId, message);
+});
+
+
 
 
 app.listen(port, () => {
