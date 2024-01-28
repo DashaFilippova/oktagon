@@ -110,7 +110,7 @@ bot.onText(/\/help/, (msg) => {
 /help - Выводит список команд с описанием
 /site - Отправляет ссылку на сайт Октагона
 /creator - Отправляет информацию о создателе бота
-`
+/list - Для проверки 6-го задания`
 ;
   bot.sendMessage(chatId, message);
 });
@@ -122,11 +122,106 @@ bot.onText(/\/site/, (msg) => {
 
 bot.onText(/\/creator/, (msg) => {
   const chatId = msg.chat.id;
-  const message = 'Мой создатель: Филиппова Дарья Антоновна';
+  const message = 'Мой создатель: Филиппова Дарья';
   bot.sendMessage(chatId, message);
 });
 
 
+bot.onText(/\/list/, (msg) => {
+  const chatId = msg.chat.id;
+  const message =` 
+Список доступных команд:
+/randomItem - Генерация случайного ID из диапазона записей в БД
+/deleteItem - Запрос к БД для удаления предмета по ID
+/getItemByID - Запрос к БД для получения предмета по ID`
+;
+  bot.sendMessage(chatId, message);
+});
+
+bot.onText(/\/randomItem/, (msg) => {
+  const chatId = msg.chat.id;
+
+  connection.query('SELECT id FROM chatbottests', (error, results, fields) => {
+    if (error) {
+      console.error('Ошибка выполнения запроса: ' + error.stack);
+      bot.sendMessage(chatId, 'Произошла ошибка при получении случайного предмета.');
+      return;
+    }
+
+
+    const randomIndex = Math.floor(Math.random() * results.length);
+    const randomItemId = results[randomIndex].id;
+
+
+    connection.query('SELECT * FROM chatbottests WHERE id = ?', [randomItemId], (error, results, fields) => {
+      if (error) {
+        console.error('Ошибка выполнения запроса: ' + error.stack);
+        bot.sendMessage(chatId, 'Произошла ошибка при получении случайного предмета.');
+        return;
+      }
+
+
+      const randomItem = results[0];
+      const message = `(${randomItem.id}) - ${randomItem.name}: ${randomItem.desc}`;
+      bot.sendMessage(chatId, message);
+    });
+  });
+});
+
+bot.onText(/^\/deleteItem(?:\s+(\S+))?$/, (msg, match) => {
+  const chatId = msg.chat.id;
+  const itemId = match[1];
+
+  if (!itemId) {
+    bot.sendMessage(chatId, 'Чтобы команда сработала правильно укажите ID предмета: /deleteItem id');
+    return;
+  }
+
+
+  connection.query('DELETE FROM chatbottests WHERE id = ?', [itemId], (error, results, fields) => {
+    if (error) {
+      console.error('Ошибка выполнения запроса: ' + error.stack);
+      bot.sendMessage(chatId, 'Произошла ошибка при удалении предмета.');
+      return;
+    }
+
+
+    if (results.affectedRows > 0) {
+      bot.sendMessage(chatId, 'Предмет успешно удален.');
+    } else {
+      bot.sendMessage(chatId, 'Ошибка: предмет с указанным ID не найден.');
+    }
+  });
+});
+
+
+
+bot.onText(/\/getItemByID(?:\s+(\S+))?$/, (msg, match) => {
+  const chatId = msg.chat.id;
+  const itemId = match[1];
+
+  if (!itemId) {
+    bot.sendMessage(chatId, 'Чтобы команда сработала правильно укажите ID предмета: /getItemByID id');
+    return;
+  }
+
+  connection.query('SELECT * FROM chatbottests WHERE id = ?', [itemId], (error, results, fields) => {
+    if (error) {
+      console.error('Ошибка выполнения запроса: ' + error.stack);
+      bot.sendMessage(chatId, 'Произошла ошибка при получении предмета.');
+      return;
+    }
+
+
+    if (results.length > 0) {
+      const item = results[0];
+      const message = `(${item.id}) - ${item.name}: ${item.desc}`;
+      bot.sendMessage(chatId, message);
+    } else {
+      bot.sendMessage(chatId, 'Предмет с указанным ID не найден.');
+    }
+  });
+});
 
 
 app.listen(port, () => {
