@@ -2,6 +2,7 @@ const express = require('express');
 const app = express();
 const port = 3000;
 const mysql = require('mysql2');
+const TelegramBot = require('node-telegram-bot-api');
 
 const connection = mysql.createConnection({
   host: 'localhost',
@@ -93,7 +94,14 @@ app.post('/updateItem', (req, res) => {
   });
 });
 
+const token = '6912032226:AAHNco7NqbcutFQQFUn3KQ4qtxKCMJaJRcQ';
+const bot = new TelegramBot(token, { polling: true });
 
+
+bot.onText(/\/start/, (msg) => {
+  const chatId = msg.chat.id;
+  bot.sendMessage(chatId, 'Привет, Октагон!');
+});
 
 
 app.listen(port, () => {
