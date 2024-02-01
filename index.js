@@ -223,6 +223,84 @@ bot.onText(/\/getItemByID(?:\s+(\S+))?$/, (msg, match) => {
   });
 });
 
+const qrcode = require('qrcode');
+const puppeteer = require('puppeteer');
+const fs = require('fs');
+const validUrl = require('valid-url');
+
+
+bot.onText(/^\/qr (.+)$/, (msg, match) => {
+  const chatId = msg.chat.id;
+  const text = match[1];
+
+  
+  if (!validUrl.isUri(text)) {
+    bot.sendMessage(chatId, 'Пожалуйста, введите корректный URL-адрес.');
+    return;
+  }
+
+  
+  qrcode.toFile('qrCode.png', text, (err) => {
+    if (err) {
+      console.error('Ошибка при создании QR-кода:', err);
+      bot.sendMessage(chatId, 'Произошла ошибка при создании QR-кода.');
+      return;
+    }
+
+    
+    bot.sendPhoto(chatId, fs.createReadStream('qrCode.png'));
+  });
+});
+
+bot.onText(/^\/webshot (.+)$/, async (msg, match) => {
+  const chatId = msg.chat.id;
+  const websiteUrl = match[1];
+
+  try {
+    
+    const browser = await puppeteer.launch();
+    const page = await browser.newPage();
+
+    
+    await page.goto(websiteUrl, { timeout: 60000 }); 
+
+    
+    const dimensions = await page.evaluate(() => {
+      return {
+        width: document.documentElement.clientWidth,
+        height: document.documentElement.clientHeight,
+        deviceScaleFactor: window.devicePixelRatio
+      };
+    });
+
+    
+    const maxPixels = 20 * 1024 * 1024;
+    const scaleFactor = Math.min(Math.sqrt(maxPixels / (dimensions.width * dimensions.height)), 1);
+    const screenshotOptions = {
+      path: 'screenshot.png',
+      clip: {
+        x: 0,
+        y: 0,
+        width: Math.round(dimensions.width * scaleFactor),
+        height: Math.round(dimensions.height * scaleFactor)
+      },
+      fullPage: false
+    };
+
+    
+    await page.screenshot(screenshotOptions);
+
+    
+    bot.sendPhoto(chatId, fs.createReadStream('screenshot.png'));
+
+    
+    await browser.close();
+  } catch (error) {
+    console.error('Ошибка при создании скриншота веб-страницы:', error);
+    bot.sendMessage(chatId, 'Произошла ошибка при создании скриншота веб-страницы.');
+  }
+});
+
 
 app.listen(port, () => {
   console.log(`Сервер запущен по адресу http://localhost:${port}`);
