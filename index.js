@@ -111,7 +111,7 @@ bot.onText(/\/help/, (msg) => {
 /help - Выводит список команд с описанием
 /site - Отправляет ссылку на сайт Октагона
 /creator - Отправляет информацию о создателе бота
-/list - Для проверки 6-го задания`
+/game - начать игру`
 ;
   bot.sendMessage(chatId, message);
 });
@@ -327,44 +327,68 @@ bot.on('message', (msg) => {
 
 
 
+let isGameActive = false; // Флаг активности игры
+let secretWord = '';
+let hiddenWord = '';
+let attemptsLeft = 10;
 
-const { setIntervalAsync } = require('set-interval-async');
+const words = ['море', 'солнце', 'пляж', 'книга', 'зима', 'музыка', 'дерево', 'дом', 'семья', 'еда'];
 
-async function checkLastMessagesAndSendRandomItem() {
-  try {
-    console.log('Проверка последних сообщений пользователей...');
-    const currentDate = new Date();
-    const twoDaysAgo = new Date(currentDate.getTime() - 60 * 1000); 
-    const formattedDate = twoDaysAgo.toISOString().slice(0, 19).replace('T', ' '); 
-
-    const sql = `SELECT ID FROM Users WHERE lastMessage <= '${formattedDate}'`;
-    connection.query(sql, (err, results, fields) => {
-      if (err) {
-        console.error('Ошибка выполнения запроса к базе данных:', err);
-        return;
-      }
-
-      console.log('Результаты запроса:', results); 
-
-      if (results.length > 0) {
-        console.log('Есть пользователи, которым нужно отправить "randomItem"');
-        results.forEach((user) => {
-         
-          const userId = user.ID;
-          console.log('Отправка сообщения пользователю с ID:', userId); 
-          bot.sendMessage(userId, 'Ты мой рыбов :3');
-        });
-      } else {
-        console.log('Нет пользователей, которым нужно отправить "randomItem"');
-      }
-    });
-  } catch (error) {
-    console.error('Ошибка при проверке даты последнего сообщения пользователей:', error);
-  }
+function startGame(chatId) {
+  secretWord = words[Math.floor(Math.random() * words.length)]; // Выбираем новое загаданное слово
+  hiddenWord = '_'.repeat(secretWord.length);
+  attemptsLeft = 10;
+  const welcomeMessage = 'Привет! Давай сыграем в игру в слова. Я загадал слово. Попробуй угадать его, вводя буквы по одной.';
+  bot.sendMessage(chatId, welcomeMessage);
 }
 
-setIntervalAsync(checkLastMessagesAndSendRandomItem, 10 * 1000); 
+bot.onText(/\/game/, (msg) => {
+  const chatId = msg.chat.id;
+  if (!isGameActive) { // Проверяем, не активна ли уже игра
+    isGameActive = true; // Устанавливаем флаг активности игры
+    startGame(chatId); // Запускаем игру
+  } else {
+    bot.sendMessage(chatId, 'Извините, игра уже начата. Пожалуйста, завершите текущую игру, прежде чем начать новую.');
+  }
+});
 
+bot.on('message', (msg) => {
+  const chatId = msg.chat.id;
+  const userInput = msg.text.toLowerCase();
+
+  if (isGameActive) { // Проверяем, активна ли игра
+    if (userInput.length === 1 && userInput.match(/[а-я]/)) {
+      if (secretWord.includes(userInput)) {
+        let updatedHiddenWord = '';
+        for (let i = 0; i < secretWord.length; i++) {
+          if (secretWord[i] === userInput) {
+            updatedHiddenWord += userInput;
+          } else {
+            updatedHiddenWord += hiddenWord[i];
+          }
+        }
+        hiddenWord = updatedHiddenWord;
+
+        if (hiddenWord === secretWord) {
+          bot.sendMessage(chatId, `Поздравляю! Ты угадал слово "${secretWord}"!`);
+          isGameActive = false; // Завершаем игру
+        } else {
+          bot.sendMessage(chatId, `Отлично! "${hiddenWord}". Попробуй еще! У тебя осталось ${attemptsLeft} попыток.`);
+        }
+      } else {
+        attemptsLeft--;
+        if (attemptsLeft === 0) {
+          bot.sendMessage(chatId, `К сожалению, ты проиграл. Загаданное слово было "${secretWord}".`);
+          isGameActive = false; // Завершаем игру
+        } else {
+          bot.sendMessage(chatId, `Нет такой буквы. Попробуй еще! У тебя осталось ${attemptsLeft} попыток.`);
+        }
+      }
+    } else {
+      bot.sendMessage(chatId, 'Пожалуйста, введите одну букву на русском языке.');
+    }
+  }
+});
 
 app.listen(port, () => {
   console.log(`Сервер запущен по адресу http://localhost:${port}`);
